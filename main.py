@@ -24,13 +24,13 @@ class Patient(BaseModel):
     def verdict(self) -> str:
 
         if self.bmi < 18.5: 
-            return 'underweight'
+            return 'Underweight'
         elif self.bmi < 25:
-            return 'normal'
+            return 'Normal'
         elif self.bmi < 30:
-            return 'Obese'
+            return 'Overweight'
         else:
-            return 'Morbidly Obese'
+            return 'Obese'
         
 class PatientUpdate(BaseModel):
     
@@ -56,7 +56,7 @@ def save_data(data):
 
 @app.get("/")
 def hello():
-    return {"message": "Patiner Management System"}
+    return {"message": "Patient Management System"}
 
 @app.get('/about')
 def about():
@@ -71,7 +71,7 @@ def view():
 
 @app.get('/patient/{patient_id}')
 def view_patient(patient_id: str = Path(
-    ..., description = "ID of the patient in the DB", example = "P001" 
+    ..., description = "ID of the patient in the DB", examples = ["P001"] 
     )):
     # load all the patients
     data = load_data()
@@ -127,4 +127,38 @@ def update_patient(patient_id: str, patient_update: PatientUpdate):
         raise HTTPException(status_code= 404, detail='Patient Not Found')
     
     existing_patient_info = data[patient_id]
-    patient_update.model_dump(exclude_unset=True)
+    updted_patient_info = patient_update.model_dump(exclude_unset=True)
+
+    for key, value in updted_patient_info.items():
+        existing_patient_info[key] = value
+    
+    #existing_patient_info -> pydantic object -> updated bmi + verdict
+    existing_patient_info['id'] = patient_id
+    existing_patient_info = Patient(**existing_patient_info)
+
+    # pydantic_objet -> dict
+    existing_patient_info = existing_patient_info.model_dump(exclude='id')
+
+    data[patient_id] = existing_patient_info
+
+    # Save into json file
+    save_data(data)
+
+    return JSONResponse(
+        status_code=200,
+        content = {'message': "Patient updated Successfully"}
+    )
+
+@app.delete('/delete/{patient_id}')
+def delete_patient(patient_id: str):
+
+    data = load_data()
+
+    if patient_id not in data:
+        raise HTTPException(status_code=404, detail="Patient not found")
+
+    del data[patient_id]
+
+    save_data(data)
+
+    return JSONResponse(status_code=200, content={'message': 'patient deleted'})
