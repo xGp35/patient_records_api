@@ -62,9 +62,17 @@ def hello():
 def about():
     return {"message": "A fully functional API to manage your patient records"}
 
+@app.get('/view')
+def view():
+    data = load_data()
+
+    return data
+
 
 @app.get('/patient/{patient_id}')
-def view_patient(patient_id: str = Path(..., description = "ID of the patient in the DB", examples = ["P001"] )):
+def view_patient(patient_id: str = Path(
+    ..., description = "ID of the patient in the DB", examples = ["P001"] 
+    )):
     # load all the patients
     data = load_data()
 
@@ -73,14 +81,39 @@ def view_patient(patient_id: str = Path(..., description = "ID of the patient in
     raise HTTPException(status_code = 404, detail = "Patient not found")
 
 
+@app.get('/sort')
+def sort_patients(
+    sort_by: str = Query(..., description = 'Sort on the basis of height, weight or bmi'),
+    order: str = Query (..., description = 'Sort in ascending or descending order')
+):
+    valid_fields = ['height', 'weight', 'bmi']
+    if sort_by not in valid_fields:
+        raise HTTPException(status_code = 400, detail = f"Invalid field, select from {valid_fields}")
+    if order not in ['asc', 'desc']:
+        raise HTTPException(status_code = 400, detail = f"Invalid field, select from 'asc', 'desc'")
+    
+    data = load_data()
+    sort_order = True if order == 'desc' else False
+    sorted_data = sorted(data.values(), key=lambda x: x.get(sort_by, 0), reverse=sort_order)
+    return sorted_data
+
 @app.get('/patients')
 def view_patients(
-    sort_by: Literal['height', 'weight', 'bmi'] | None = Query('bmi', description="Sort on the basis of height, weight or bmi"),
-    order: Literal['asc', 'desc'] | None = Query("desc", description="Sort in ascending or descending order")
+    sort_by: str | None = Query('bmi', description="Sort on the basis of height, weight or bmi"),
+    order: str | None = Query("desc", description="Sort in ascending or descending order")
 ):
     data = load_data()
 
     patients = list(data.values())
+
+    # Apply sort only if sort is provided
+    if sort_by:
+        valid_fields = ['height', 'weight', 'bmi']
+        if sort_by not in valid_fields:
+            raise HTTPException(status_code=400, detail=f"Invalid field selected, select from {valid_fields}")
+    
+    if order not in ['asc', 'desc']:
+        raise HTTPException(status_code=400, detail="Order_by must be 'asc' or 'desc'")
     
     reverse_order = True if order == 'desc' else False
 
