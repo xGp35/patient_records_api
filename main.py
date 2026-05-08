@@ -83,11 +83,8 @@ def view_patient(patient_id: str = Path(
 
 @app.get('/sort')
 def sort_patients(
-    sort_by: str = Query(
-        ..., description = 'Sort on the basis of height, weight or bmi'),
-    order: str = Query (
-        ..., description = 'Sort in ascending or descending order'
-    )
+    sort_by: str = Query(..., description = 'Sort on the basis of height, weight or bmi'),
+    order: str = Query (..., description = 'Sort in ascending or descending order')
 ):
     valid_fields = ['height', 'weight', 'bmi']
     if sort_by not in valid_fields:
@@ -100,6 +97,29 @@ def sort_patients(
     sorted_data = sorted(data.values(), key=lambda x: x.get(sort_by, 0), reverse=sort_order)
     return sorted_data
 
+@app.get('/patients')
+def view_patients(
+    sort_by: str | None = Query('bmi', description="Sort on the basis of height, weight or bmi"),
+    order: str | None = Query("desc", description="Sort in ascending or descending order")
+):
+    data = load_data()
+
+    patients = list(data.values())
+
+    # Apply sort only if sort is provided
+    if sort_by:
+        valid_fields = ['height', 'weight', 'bmi']
+        if sort_by not in valid_fields:
+            raise HTTPException(status_code=400, detail=f"Invalid field selected, select from {valid_fields}")
+    
+    if order not in ['asc', 'desc']:
+        raise HTTPException(status_code=400, detail="Order_by must be 'asc' or 'desc'")
+    
+    reverse_order = True if order == 'desc' else False
+
+    patients = sorted(patients, key= lambda x: x.get(sort_by, 0), reverse=reverse_order)
+    
+    return patients
 
 @app.post('/create')
 def create_patient(patient: Patient):
